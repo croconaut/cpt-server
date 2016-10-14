@@ -1,0 +1,8 @@
+.gradle
+/build
+/.idea
+!.idea/runConfigurations/app.xml
+*.iml
+local.properties
+.DS_Store
+Thumbs.db
