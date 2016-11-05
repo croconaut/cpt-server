@@ -23,6 +23,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public abstract class CptSyncThread extends LoggableThread {
     private static final String     API_KEY = "TODO: read the API key from a file";
@@ -90,6 +92,13 @@ public abstract class CptSyncThread extends LoggableThread {
 
     protected void receiveCrocoIdAndUsername() throws IOException {
         crocoId = dis.readUTF();
+
+        Pattern p = Pattern.compile("^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$");
+        Matcher m = p.matcher(crocoId);
+        if (!m.find()) {
+            throw new IOException("Received an illegal croco id:" + crocoId);
+        }
+
         if (dis.readBoolean()) {
             name = dis.readUTF();
             mySqlAccess.setName(crocoId, name);
