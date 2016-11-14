@@ -1,11 +1,19 @@
 package com.croconaut;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.sql.SQLException;
 
 public class CptServer {
+    public static String SERVER_API_KEY;
+    public static String JDBC_DB_NAME;
+    public static String JDBC_USERNAME;
+    public static String JDBC_PASSWORD;
+
     public static void main(String[] args) {
         /*
         Logger logger = Logger.getLogger(Sender.class.getName());
@@ -19,6 +27,24 @@ public class CptServer {
             // This will load the MySQL driver, each DB has its own driver
             Class.forName("com.mysql.jdbc.Driver").newInstance();
             System.out.println("mysql ok");
+
+            FileReader fileReader = new FileReader("jdbc.txt");
+            BufferedReader bufferedReader = new BufferedReader(fileReader);
+            JDBC_DB_NAME = bufferedReader.readLine();
+            JDBC_USERNAME = bufferedReader.readLine();
+            JDBC_PASSWORD = bufferedReader.readLine();
+            if (JDBC_DB_NAME == null || JDBC_USERNAME == null || JDBC_PASSWORD == null) {
+                throw new IllegalArgumentException("jdbc credentials file is corrupted");
+            }
+            // test the connection
+            new MySqlAccess();
+
+            fileReader = new FileReader("api_key.txt");
+            bufferedReader = new BufferedReader(fileReader);
+            SERVER_API_KEY = bufferedReader.readLine();
+            if (SERVER_API_KEY == null) {
+                throw new IllegalArgumentException("api key file is corrupted");
+            }
 
             boolean skipLoading = false;
             for (String arg : args) {
@@ -55,7 +81,7 @@ public class CptServer {
             ListeningThread listeningThread = new ListeningThread();
             listeningThread.start();
             listeningThread.join();
-        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException | InterruptedException e) {
+        } catch (InstantiationException | IllegalAccessException | ClassNotFoundException | InterruptedException | IOException | SQLException e) {
             e.printStackTrace();
         }
   }

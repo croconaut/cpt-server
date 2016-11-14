@@ -35,7 +35,9 @@ public class MySqlAccess {
     private final Connection mySqlConnection;
 
     public MySqlAccess() throws SQLException {
-        mySqlConnection = (Connection) DriverManager.getConnection("jdbc:mysql://TODO: read the credentials from a file");
+        mySqlConnection = (Connection) DriverManager.getConnection(
+                String.format("jdbc:mysql://localhost/%1$s?user=%2$s&password=%3$s", CptServer.JDBC_DB_NAME, CptServer.JDBC_USERNAME, CptServer.JDBC_PASSWORD)
+        );
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////

@@ -27,7 +27,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public abstract class CptSyncThread extends LoggableThread {
-    private static final String     API_KEY = "TODO: read the API key from a file";
     public static final String BROADCAST_ID = "ff:ff:ff:ff:ff:ff";
 
     private final Socket socket;
@@ -150,7 +149,7 @@ public abstract class CptSyncThread extends LoggableThread {
                         .build();
                 //log(message.toString());
                 try {
-                    Sender sender = new Sender(API_KEY);
+                    Sender sender = new Sender(CptServer.SERVER_API_KEY);
                     Result result = sender.send(message, token, 5);
                     log("sender.send() result: " + result.toString());
 

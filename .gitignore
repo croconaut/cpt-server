@@ -6,3 +6,6 @@
 local.properties
 .DS_Store
 Thumbs.db
+# never ever put these in the repository
+api_key.txt
+jdbc.txt
