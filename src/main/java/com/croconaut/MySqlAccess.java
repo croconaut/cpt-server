@@ -139,6 +139,10 @@ public class MySqlAccess {
         setOneToMany(TABLE_FRIENDS, TABLE_FRIENDS_COLUMN_CROCO_ID, TABLE_FRIENDS_COLUMN_FRIEND_ID, crocoId, friends);
     }
 
+    public void addFriend(String crocoId, String friend) {
+        insertOrIgnore(TABLE_FRIENDS, TABLE_FRIENDS_COLUMN_CROCO_ID, TABLE_FRIENDS_COLUMN_FRIEND_ID, crocoId, friend);
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static final String                        TABLE_ACQUAINTANCES = "acquaintances";
