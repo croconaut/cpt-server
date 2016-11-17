@@ -6,7 +6,7 @@ public class NetworkUtil {
     public static final int         SOCKET_TIMEOUT = 30 * 1000;
     public static final int     CONNECTION_TIMEOUT = 10 * 1000;
 
-    public static final int        APP_SERVER_PORT = 50001;
+    public static final int        APP_SERVER_PORT = 50002;
 
     public static final int DOWNLOAD_MESSAGES_AND_ATTACHMENTS_DELIVERY = 0x01;
     public static final int                               UPLOAD_TOKEN = 0x02;
