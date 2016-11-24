@@ -142,7 +142,7 @@ public class UploadTokenThread extends CptSyncThread {
             textMessage = new Message(
                     "Oh, and WiFON is open source. Take a look at https://github.com/croconaut.\n"
                             + "\n"
-                            + "If you are interested in technical details, go to https://github.com/croconaut/cpt/wiki.",
+                            + "If you are interested in technical details, go to https://github.com/croconaut/cpt/wiki",
                     null, "Miro Kropáček");
             baos = new ByteArrayOutputStream();
             oos = new ObjectOutputStream(baos);
