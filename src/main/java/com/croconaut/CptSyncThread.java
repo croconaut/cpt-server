@@ -352,7 +352,7 @@ public abstract class CptSyncThread extends LoggableThread {
 
                 // send the email notification
                 sendFromGMail(CptServer.GMAIL_USERNAME, CptServer.GMAIL_PASSWORD,
-                        new String[] { "wifon-users@wifon.sk" },
+                        new String[] { "mikro@wifon.sk", "xi@wifon.sk", "spili@wifon.sk" },
                         subject, body);
 
                 // make ACK
