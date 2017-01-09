@@ -14,6 +14,9 @@ public class CptServer {
     public static String JDBC_USERNAME;
     public static String JDBC_PASSWORD;
 
+    public static String GMAIL_USERNAME;
+    public static String GMAIL_PASSWORD;
+
     public static void main(String[] args) {
         /*
         Logger logger = Logger.getLogger(Sender.class.getName());
@@ -44,6 +47,14 @@ public class CptServer {
             SERVER_API_KEY = bufferedReader.readLine();
             if (SERVER_API_KEY == null) {
                 throw new IllegalArgumentException("api key file is corrupted");
+            }
+
+            fileReader = new FileReader("gmail.txt");
+            bufferedReader = new BufferedReader(fileReader);
+            GMAIL_USERNAME = bufferedReader.readLine();
+            GMAIL_PASSWORD = bufferedReader.readLine();
+            if (GMAIL_USERNAME == null || GMAIL_PASSWORD == null) {
+                throw new IllegalArgumentException("gmail credentials file is corrupted");
             }
 
             boolean skipLoading = false;

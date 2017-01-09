@@ -3,18 +3,19 @@ package com.croconaut;
 import com.croconaut.cpt.network.NetworkHeader;
 import com.croconaut.cpt.network.NetworkHop;
 import com.croconaut.cpt.network.NetworkMessage;
-import com.google.android.gcm.server.Message;
 import com.google.android.gcm.server.Result;
 import com.google.android.gcm.server.Sender;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.StreamCorruptedException;
 import java.net.Socket;
+import java.net.URLEncoder;
 import java.sql.SQLException;
 import java.util.Calendar;
 import java.util.Date;
@@ -22,12 +23,22 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.AddressException;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
+
 public abstract class CptSyncThread extends LoggableThread {
     public static final String BROADCAST_ID = "ff:ff:ff:ff:ff:ff";
+    public static final String   AUTHORS_ID = "00:00:00:00:00:00";
 
     private final Socket socket;
     protected final MySqlAccess mySqlAccess;
@@ -141,10 +152,13 @@ public abstract class CptSyncThread extends LoggableThread {
             if (token != null) {
                 boolean isHighPriority = clientsToNotify.get(clientCrocoId);
 
-                Message message = new Message.Builder()
+                com.google.android.gcm.server.Message message
+                        = new com.google.android.gcm.server.Message.Builder()
                         .collapseKey("sync")
                         .timeToLive(7 * 24 * 60 * 60)  // TODO: read from the DB a relativne ku creationTime
-                        .priority(isHighPriority ? Message.Priority.HIGH : Message.Priority.NORMAL)
+                        .priority(isHighPriority
+                                ? com.google.android.gcm.server.Message.Priority.HIGH
+                                : com.google.android.gcm.server.Message.Priority.NORMAL)
                         .delayWhileIdle(!isHighPriority)
                         .build();
                 //log(message.toString());
@@ -252,7 +266,7 @@ public abstract class CptSyncThread extends LoggableThread {
                         }
                     }
                 }
-            } else {
+            } else if (!to.equals(AUTHORS_ID)){
                 networkMessage.addHop(networkHop);
 
                 // NORMAL, assume we don't have it yet (it's possible some other thread has inserted it now)
@@ -299,6 +313,46 @@ public abstract class CptSyncThread extends LoggableThread {
                         notify(communityCrocoId, false);   // low priority...
                     }
                 }
+            } else {
+                String name = "<unknown>";
+                String encodedName = "unknown";
+                String encodedCrocoId = "unknown";
+                String content = "<unknown content>";
+
+                try {
+                    ByteArrayInputStream bais = new ByteArrayInputStream(networkMessage.getAppPayload());
+                    ObjectInputStream ois = new ObjectInputStream(bais);
+                    com.croconaut.ratemebuddy.data.pojo.Message appMessage
+                            = (com.croconaut.ratemebuddy.data.pojo.Message) ois.readObject();
+                    name = appMessage.getProfileName();
+                    content = appMessage.decoded().getContent();
+
+                    encodedName = URLEncoder.encode(name, "utf-8");
+                    encodedCrocoId = URLEncoder.encode(networkMessage.header.getFrom(), "utf-8");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
+
+                String subject = "New WiFON message from " + name;
+                String body = "Dear WiFON author,\n"
+                        + "\n"
+                        + name + " has written to our authors Croco ID. Please add him as a friend via"
+                        + " http://wifon.sk/profiles/profile?name=" + encodedName + "&croco_id=" + encodedCrocoId
+                        + " and reply to this email when done with your asnwer to him.\n"
+                        + "\n"
+                        + "Message to us:\n"
+                        + "\n"
+                        + content;
+
+                // send the email notification
+                sendFromGMail(CptServer.GMAIL_USERNAME, CptServer.GMAIL_PASSWORD,
+                        new String[] { "wifon-users@wifon.sk" },
+                        subject, body);
+
+                // TODO: ACK
+                networkMessage.addHop(networkHop);
             }
         }
 
@@ -315,6 +369,47 @@ public abstract class CptSyncThread extends LoggableThread {
     private void notify(String who, boolean highPriority) {
         if (!clientsToNotify.containsKey(who) || highPriority) {
             clientsToNotify.put(who, highPriority);
+        }
+    }
+
+    private void sendFromGMail(String from, String pass, String[] to, String subject, String body) {
+        Properties props = System.getProperties();
+        String host = "smtp.gmail.com";
+        props.put("mail.smtp.starttls.enable", "true");
+        props.put("mail.smtp.host", host);
+        props.put("mail.smtp.user", from);
+        props.put("mail.smtp.password", pass);
+        props.put("mail.smtp.port", "587");
+        props.put("mail.smtp.auth", "true");
+
+        Session session = Session.getDefaultInstance(props);
+        MimeMessage message = new MimeMessage(session);
+
+        try {
+            message.setFrom(new InternetAddress(from));
+            InternetAddress[] toAddress = new InternetAddress[to.length];
+
+            // To get the array of addresses
+            for( int i = 0; i < to.length; i++ ) {
+                toAddress[i] = new InternetAddress(to[i]);
+            }
+
+            for( int i = 0; i < toAddress.length; i++) {
+                message.addRecipient(Message.RecipientType.TO, toAddress[i]);
+            }
+
+            message.setSubject(subject);
+            message.setText(body);
+            Transport transport = session.getTransport("smtps");    // "smtp" doesn't work
+            transport.connect(host, from, pass);
+            transport.sendMessage(message, message.getAllRecipients());
+            transport.close();
+        }
+        catch (AddressException ae) {
+            ae.printStackTrace();
+        }
+        catch (MessagingException me) {
+            me.printStackTrace();
         }
     }
 }
