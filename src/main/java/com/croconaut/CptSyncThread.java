@@ -235,7 +235,7 @@ public abstract class CptSyncThread extends LoggableThread {
             final String from = networkMessage.header.getFrom();
             final String   to = networkMessage.header.getTo();
 
-            if (!to.equals(BROADCAST_ID)) {
+            if (!to.equals(BROADCAST_ID) && !to.equals(AUTHORS_ID)) {
                 if (networkMessage.header.getType() == NetworkHeader.Type.NORMAL) {
                     networkMessage.addHop(networkHop);
 
@@ -314,6 +314,10 @@ public abstract class CptSyncThread extends LoggableThread {
                     }
                 }
             } else {
+                // treat as normal message
+                networkMessage.addHop(networkHop);
+                mySqlAccess.insertMessage(networkMessage);
+
                 String name = "<unknown>";
                 String encodedName = "unknown";
                 String encodedCrocoId = "unknown";
@@ -330,9 +334,9 @@ public abstract class CptSyncThread extends LoggableThread {
                     encodedName = URLEncoder.encode(name, "utf-8");
                     encodedCrocoId = URLEncoder.encode(networkMessage.header.getFrom(), "utf-8");
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    log(e);
                 } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
+                    log(e);
                 }
 
                 String subject = "New WiFON message from " + name;
@@ -351,8 +355,10 @@ public abstract class CptSyncThread extends LoggableThread {
                         new String[] { "wifon-users@wifon.sk" },
                         subject, body);
 
-                // TODO: ACK
-                networkMessage.addHop(networkHop);
+                // make ACK
+                mySqlAccess.updateMessageToAck(networkMessage.header.getIdentifier(), new Date(), networkMessage.getHops());
+                notify(networkMessage.header.getFrom(), false);
+                includeMyself = true;
             }
         }
 
