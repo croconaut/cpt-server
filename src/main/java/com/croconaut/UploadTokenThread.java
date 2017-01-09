@@ -54,16 +54,16 @@ public class UploadTokenThread extends CptSyncThread {
             ArrayList<NetworkAttachmentPreview> networkAttachmentPreviews = new ArrayList<>();
 
             Message textMessage = new Message(
-                    "Hi, Miro here.\n"
+                    "Hi, WiFON authors here.\n"
                     + "\n"
-                    + "Me and my friends have created WiFON, just to see whether it's really possible.\n"
+                    + "We have created WiFON, just to see whether it's really possible.\n"
                     + "\n"
                     + "What you ask? Sending messages to each other without Internet connectivity! :-O\n"
                     + "\n"
                     + "This message is sent from our server, of course. But try to 'forget' your current Wi-Fi network and/or "
                         + "disable mobile data and try to write to a friend who has our app installed and is standing "
                         + "next to you. Miraculously he will receive it! (hopefully ;))",
-                    null, "Miro Kropáček").encoded();
+                    null, "WiFON bot").encoded();
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ObjectOutputStream oos = new ObjectOutputStream(baos);
             oos.writeObject(textMessage);
@@ -103,7 +103,7 @@ public class UploadTokenThread extends CptSyncThread {
                     "Of course, it's totally OK to exchange messages (and images, videos, files, ...) via our server, too.\n"
                     + "\n"
                     + "If you want to know more, feel free to take a look at https://wifon.sk or just text me here, on WiFON!",
-                    null, "Miro Kropáček").encoded();
+                    null, "WiFON bot").encoded();
             baos = new ByteArrayOutputStream();
             oos = new ObjectOutputStream(baos);
             oos.writeObject(textMessage);
@@ -143,7 +143,7 @@ public class UploadTokenThread extends CptSyncThread {
                     "Oh, and WiFON is open source. Take a look at https://github.com/croconaut.\n"
                             + "\n"
                             + "If you are interested in technical details, go to https://github.com/croconaut/cpt/wiki",
-                    null, "Miro Kropáček").encoded();
+                    null, "WiFON bot").encoded();
             baos = new ByteArrayOutputStream();
             oos = new ObjectOutputStream(baos);
             oos.writeObject(textMessage);

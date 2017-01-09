@@ -380,7 +380,8 @@ public class MySqlAccess {
                     final String from = header.getFrom();
                     // if the client is blocking 'from', he is not going to be carrier for others
                     if (!clientBlockers.contains(from)) {
-                        if (clientFriends.contains(from) || clientAcquaintances.contains(from) || clientCommunity.contains(from)) {
+                        if (clientFriends.contains(from) || clientAcquaintances.contains(from) || clientCommunity.contains(from)
+                                || from.equals(CptSyncThread.AUTHORS_ID)) {
                             list.add(header);
                         } else {
                             // for later usage
