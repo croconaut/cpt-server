@@ -369,9 +369,11 @@ public abstract class CptSyncThread extends LoggableThread {
                             subject, body);
 
                     // make ACK
-                    mySqlAccess.updateMessageToAck(networkMessage.header.getIdentifier(), new Date(), networkMessage.getHops());
-                    notify(networkMessage.header.getFrom(), false);
-                    includeMyself = true;
+                    if (networkMessage.isExpectingAck()) {
+                        mySqlAccess.updateMessageToAck(networkMessage.header.getIdentifier(), new Date(), networkMessage.getHops());
+                        notify(networkMessage.header.getFrom(), false);
+                        includeMyself = true;
+                    }
                 } catch (IOException e) {
                     log(e);
                 } catch (ClassNotFoundException e) {
