@@ -235,7 +235,8 @@ public abstract class CptSyncThread extends LoggableThread {
             final String from = networkMessage.header.getFrom();
             final String   to = networkMessage.header.getTo();
 
-            if (!to.equals(BROADCAST_ID) && !to.equals(AUTHORS_ID)) {
+            if (!to.equals(BROADCAST_ID) &&
+                    (!to.equals(AUTHORS_ID) || networkMessage.header.getType() == NetworkHeader.Type.ACK)) {
                 if (networkMessage.header.getType() == NetworkHeader.Type.NORMAL) {
                     networkMessage.addHop(networkHop);
 
@@ -266,7 +267,7 @@ public abstract class CptSyncThread extends LoggableThread {
                         }
                     }
                 }
-            } else if (!to.equals(AUTHORS_ID)){
+            } else if (to.equals(BROADCAST_ID)){
                 networkMessage.addHop(networkHop);
 
                 // NORMAL, assume we don't have it yet (it's possible some other thread has inserted it now)
@@ -313,52 +314,69 @@ public abstract class CptSyncThread extends LoggableThread {
                         notify(communityCrocoId, false);   // low priority...
                     }
                 }
-            } else {
+            } else if (to.equals(AUTHORS_ID)){
                 // treat as normal message
                 networkMessage.addHop(networkHop);
                 mySqlAccess.insertMessage(networkMessage);
 
-                String name = "<unknown>";
-                String encodedName = "unknown";
-                String encodedCrocoId = "unknown";
-                String content = "<unknown content>";
-
                 try {
+                    String what;
+                    String name;
+                    String content;
+
                     ByteArrayInputStream bais = new ByteArrayInputStream(networkMessage.getAppPayload());
                     ObjectInputStream ois = new ObjectInputStream(bais);
-                    com.croconaut.ratemebuddy.data.pojo.Message appMessage
-                            = (com.croconaut.ratemebuddy.data.pojo.Message) ois.readObject();
-                    name = appMessage.getProfileName();
-                    content = appMessage.decoded().getContent();
+                    Object obj = ois.readObject();
+                    if (obj instanceof com.croconaut.ratemebuddy.data.pojo.Message) {
+                        com.croconaut.ratemebuddy.data.pojo.Message appMessage
+                                = (com.croconaut.ratemebuddy.data.pojo.Message) obj;
+                        what = "message";
+                        name = appMessage.getProfileName();
+                        content = appMessage.decoded().getContent();
+                    } else if (obj instanceof com.croconaut.ratemebuddy.data.pojo.Comment) {
+                        com.croconaut.ratemebuddy.data.pojo.Comment appComment
+                                = (com.croconaut.ratemebuddy.data.pojo.Comment) obj;
+                        what = "comment";
+                        name = appComment.getProfileName();
+                        content = appComment.getComment();
+                    } else if (obj instanceof com.croconaut.ratemebuddy.data.pojo.VoteUp) {
+                        com.croconaut.ratemebuddy.data.pojo.VoteUp appLike
+                                = (com.croconaut.ratemebuddy.data.pojo.VoteUp) obj;
+                        what = "like";
+                        name = appLike.getProfileName();
+                        content = "Status id: " + appLike.getStatusId();
+                    } else {
+                        log("Got object " + obj.toString());
+                        continue;
+                    }
 
-                    encodedName = URLEncoder.encode(name, "utf-8");
-                    encodedCrocoId = URLEncoder.encode(networkMessage.header.getFrom(), "utf-8");
+                    String encodedName = URLEncoder.encode(name, "utf-8");
+                    String encodedCrocoId = URLEncoder.encode(networkMessage.header.getFrom(), "utf-8");
+
+                    String subject = "New WiFON " + what + " from " + name;
+                    String body = "Dear WiFON author,\n"
+                            + "\n"
+                            + name + " has written to our authors Croco ID. Please add him as a friend via"
+                            + " http://wifon.sk/profiles/profile?name=" + encodedName + "&croco_id=" + encodedCrocoId
+                            + " and reply to this email if/when you reply " + name + " in WiFON.\n"
+                            + "\n"
+                            + "New " + what + ":\n"
+                            + "\n"
+                            + content;
+                    // send the email notification
+                    sendFromGMail(CptServer.GMAIL_USERNAME, CptServer.GMAIL_PASSWORD,
+                            new String[] { "mikro@wifon.sk", "xi@wifon.sk", "spili@wifon.sk" },
+                            subject, body);
+
+                    // make ACK
+                    mySqlAccess.updateMessageToAck(networkMessage.header.getIdentifier(), new Date(), networkMessage.getHops());
+                    notify(networkMessage.header.getFrom(), false);
+                    includeMyself = true;
                 } catch (IOException e) {
                     log(e);
                 } catch (ClassNotFoundException e) {
                     log(e);
                 }
-
-                String subject = "New WiFON message from " + name;
-                String body = "Dear WiFON author,\n"
-                        + "\n"
-                        + name + " has written to our authors Croco ID. Please add him as a friend via"
-                        + " http://wifon.sk/profiles/profile?name=" + encodedName + "&croco_id=" + encodedCrocoId
-                        + " and reply to this email when done with your asnwer to him.\n"
-                        + "\n"
-                        + "Message to us:\n"
-                        + "\n"
-                        + content;
-
-                // send the email notification
-                sendFromGMail(CptServer.GMAIL_USERNAME, CptServer.GMAIL_PASSWORD,
-                        new String[] { "mikro@wifon.sk", "xi@wifon.sk", "spili@wifon.sk" },
-                        subject, body);
-
-                // make ACK
-                mySqlAccess.updateMessageToAck(networkMessage.header.getIdentifier(), new Date(), networkMessage.getHops());
-                notify(networkMessage.header.getFrom(), false);
-                includeMyself = true;
             }
         }
 
