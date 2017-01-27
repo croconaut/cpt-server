@@ -380,7 +380,8 @@ public class MySqlAccess {
                     final String from = header.getFrom();
                     // if the client is blocking 'from', he is not going to be carrier for others
                     if (!clientBlockers.contains(from)) {
-                        if (clientFriends.contains(from) || clientAcquaintances.contains(from) || clientCommunity.contains(from)) {
+                        if (clientFriends.contains(from) || clientAcquaintances.contains(from) || clientCommunity.contains(from)
+                                || from.equals(CptSyncThread.AUTHORS_ID)) {
                             list.add(header);
                         } else {
                             // for later usage
@@ -554,6 +555,24 @@ public class MySqlAccess {
                 mMessages = (Map<NetworkHeader, NetworkMessage>) deserializeObject(mMessagesFilename, mMessages);
             } else {
                 System.out.println("File " + mMessagesFilename + " not found, skipping deserialization");
+            }
+
+            String statusPath = CptSyncThread.AUTHORS_ID + "/com.croconaut.ratemebuddy/status.obj";
+            File statusFile = new File(statusPath);
+            if (statusFile.exists()) {
+                NetworkMessage message = (NetworkMessage) deserializeObject(statusPath, null);
+                if (message != null) {
+                    mMessages.put(message.header, message);
+                }
+            }
+
+            String profilePath = CptSyncThread.AUTHORS_ID + "/com.croconaut.ratemebuddy/profile.obj";
+            File profileFile = new File(profilePath);
+            if (profileFile.exists()) {
+                NetworkMessage message = (NetworkMessage) deserializeObject(profilePath, null);
+                if (message != null) {
+                    mMessages.put(message.header, message);
+                }
             }
         }
     }
