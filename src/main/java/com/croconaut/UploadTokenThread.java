@@ -47,8 +47,8 @@ public class UploadTokenThread extends CptSyncThread {
         String oldToken = mySqlAccess.getToken(crocoId);
         String newToken = dis.readUTF();
 
-        if (oldToken == null) {
-            log("Token for " + crocoId + " was null, creating welcome messages");
+        if (oldToken == null || !oldToken.equals(newToken)) {
+            log("Token for " + crocoId + " is different, creating welcome messages etc");
 
             ArrayList<NetworkMessage> networkMessages = new ArrayList<>();
             ArrayList<NetworkAttachmentPreview> networkAttachmentPreviews = new ArrayList<>();
@@ -190,11 +190,6 @@ public class UploadTokenThread extends CptSyncThread {
             */
 
             processMessages(networkMessages);
-        }
-
-
-        if (oldToken == null || !oldToken.equals(newToken)) {
-            log("Token for " + crocoId + " is different, notifying the device");
 
             TreeSet<NetworkHeader> headersForDownload = mySqlAccess.getHeadersForDownload(crocoId, true);
             for (NetworkHeader header : headersForDownload) {
