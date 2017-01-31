@@ -243,6 +243,7 @@ public abstract class CptSyncThread extends LoggableThread {
                     mySqlAccess.insertMessage(networkMessage);
 
                     if (to.equals(AUTHORS_ID)) {
+                        log("creating emails...");
                         try {
                             String what;
                             String name;
@@ -287,10 +288,12 @@ public abstract class CptSyncThread extends LoggableThread {
                                     + "New " + what + ":\n"
                                     + "\n"
                                     + content;
+                            log("sending emails...");
                             // send the email notification
                             sendFromGMail(CptServer.GMAIL_USERNAME, CptServer.GMAIL_PASSWORD,
                                     new String[]{"mikro@wifon.sk", "xi@wifon.sk", "spili@wifon.sk"},
                                     subject, body);
+                            log("emails sent");
                         } catch (IOException e) {
                             log(e);
                         } catch (ClassNotFoundException e) {
