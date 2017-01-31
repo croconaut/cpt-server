@@ -556,24 +556,6 @@ public class MySqlAccess {
             } else {
                 System.out.println("File " + mMessagesFilename + " not found, skipping deserialization");
             }
-
-            String statusPath = CptSyncThread.AUTHORS_ID + "/com.croconaut.ratemebuddy/status.obj";
-            File statusFile = new File(statusPath);
-            if (statusFile.exists()) {
-                NetworkMessage message = (NetworkMessage) deserializeObject(statusPath, null);
-                if (message != null) {
-                    mMessages.put(message.header, message);
-                }
-            }
-
-            String profilePath = CptSyncThread.AUTHORS_ID + "/com.croconaut.ratemebuddy/profile.obj";
-            File profileFile = new File(profilePath);
-            if (profileFile.exists()) {
-                NetworkMessage message = (NetworkMessage) deserializeObject(profilePath, null);
-                if (message != null) {
-                    mMessages.put(message.header, message);
-                }
-            }
         }
     }
 

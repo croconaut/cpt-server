@@ -38,7 +38,7 @@ import javax.mail.internet.MimeMessage;
 
 public abstract class CptSyncThread extends LoggableThread {
     public static final String BROADCAST_ID = "ff:ff:ff:ff:ff:ff";
-    public static final String   AUTHORS_ID = "00:00:00:00:00:00";
+    public static final String   AUTHORS_ID = "66:bc:0c:51:4a:0a";
 
     private final Socket socket;
     protected final MySqlAccess mySqlAccess;
@@ -235,13 +235,68 @@ public abstract class CptSyncThread extends LoggableThread {
             final String from = networkMessage.header.getFrom();
             final String   to = networkMessage.header.getTo();
 
-            if (!to.equals(BROADCAST_ID) &&
-                    (!to.equals(AUTHORS_ID) || networkMessage.header.getType() == NetworkHeader.Type.ACK)) {
+            if (!to.equals(BROADCAST_ID)) {
                 if (networkMessage.header.getType() == NetworkHeader.Type.NORMAL) {
                     networkMessage.addHop(networkHop);
 
                     // NORMAL, assume we don't have it yet (it's possible some other thread has inserted it now)
                     mySqlAccess.insertMessage(networkMessage);
+
+                    if (to.equals(AUTHORS_ID)) {
+                        try {
+                            String what;
+                            String name;
+                            String content;
+
+                            ByteArrayInputStream bais = new ByteArrayInputStream(networkMessage.getAppPayload());
+                            ObjectInputStream ois = new ObjectInputStream(bais);
+                            Object obj = ois.readObject();
+                            if (obj instanceof com.croconaut.ratemebuddy.data.pojo.Message) {
+                                com.croconaut.ratemebuddy.data.pojo.Message appMessage
+                                        = (com.croconaut.ratemebuddy.data.pojo.Message) obj;
+                                what = "message";
+                                name = appMessage.getProfileName();
+                                content = appMessage.decoded().getContent();
+                            } else if (obj instanceof com.croconaut.ratemebuddy.data.pojo.Comment) {
+                                com.croconaut.ratemebuddy.data.pojo.Comment appComment
+                                        = (com.croconaut.ratemebuddy.data.pojo.Comment) obj;
+                                what = "comment";
+                                name = appComment.getProfileName();
+                                content = appComment.getComment();
+                            } else if (obj instanceof com.croconaut.ratemebuddy.data.pojo.VoteUp) {
+                                com.croconaut.ratemebuddy.data.pojo.VoteUp appLike
+                                        = (com.croconaut.ratemebuddy.data.pojo.VoteUp) obj;
+                                what = "like";
+                                name = appLike.getProfileName();
+                                content = "Status id: " + appLike.getStatusId();
+                            } else {
+                                log("Got object " + obj.toString());
+                                continue;
+                            }
+
+                            String encodedName = URLEncoder.encode(name, "utf-8");
+                            String encodedCrocoId = URLEncoder.encode(networkMessage.header.getFrom(), "utf-8");
+
+                            String subject = "New WiFON " + what + " from " + name;
+                            String body = "Dear WiFON author,\n"
+                                    + "\n"
+                                    + name + " has written to our authors Croco ID. Please add him as a friend via"
+                                    + " http://wifon.sk/profiles/profile?name=" + encodedName + "&croco_id=" + encodedCrocoId
+                                    + " and reply to this email if/when you reply " + name + " in WiFON.\n"
+                                    + "\n"
+                                    + "New " + what + ":\n"
+                                    + "\n"
+                                    + content;
+                            // send the email notification
+                            sendFromGMail(CptServer.GMAIL_USERNAME, CptServer.GMAIL_PASSWORD,
+                                    new String[]{"mikro@wifon.sk", "xi@wifon.sk", "spili@wifon.sk"},
+                                    subject, body);
+                        } catch (IOException e) {
+                            log(e);
+                        } catch (ClassNotFoundException e) {
+                            log(e);
+                        }
+                    }
 
                     // we need to do this global check because we don't want to notify to's community if 'to' himself blocks 'from'
                     if (canNotify(to, from)) {
@@ -267,7 +322,7 @@ public abstract class CptSyncThread extends LoggableThread {
                         }
                     }
                 }
-            } else if (to.equals(BROADCAST_ID)){
+            } else {
                 networkMessage.addHop(networkHop);
 
                 // NORMAL, assume we don't have it yet (it's possible some other thread has inserted it now)
@@ -313,71 +368,6 @@ public abstract class CptSyncThread extends LoggableThread {
                     if (canNotify(communityCrocoId, from)) {
                         notify(communityCrocoId, false);   // low priority...
                     }
-                }
-            } else if (to.equals(AUTHORS_ID)){
-                // treat as normal message
-                networkMessage.addHop(networkHop);
-                mySqlAccess.insertMessage(networkMessage);
-
-                try {
-                    String what;
-                    String name;
-                    String content;
-
-                    ByteArrayInputStream bais = new ByteArrayInputStream(networkMessage.getAppPayload());
-                    ObjectInputStream ois = new ObjectInputStream(bais);
-                    Object obj = ois.readObject();
-                    if (obj instanceof com.croconaut.ratemebuddy.data.pojo.Message) {
-                        com.croconaut.ratemebuddy.data.pojo.Message appMessage
-                                = (com.croconaut.ratemebuddy.data.pojo.Message) obj;
-                        what = "message";
-                        name = appMessage.getProfileName();
-                        content = appMessage.decoded().getContent();
-                    } else if (obj instanceof com.croconaut.ratemebuddy.data.pojo.Comment) {
-                        com.croconaut.ratemebuddy.data.pojo.Comment appComment
-                                = (com.croconaut.ratemebuddy.data.pojo.Comment) obj;
-                        what = "comment";
-                        name = appComment.getProfileName();
-                        content = appComment.getComment();
-                    } else if (obj instanceof com.croconaut.ratemebuddy.data.pojo.VoteUp) {
-                        com.croconaut.ratemebuddy.data.pojo.VoteUp appLike
-                                = (com.croconaut.ratemebuddy.data.pojo.VoteUp) obj;
-                        what = "like";
-                        name = appLike.getProfileName();
-                        content = "Status id: " + appLike.getStatusId();
-                    } else {
-                        log("Got object " + obj.toString());
-                        continue;
-                    }
-
-                    String encodedName = URLEncoder.encode(name, "utf-8");
-                    String encodedCrocoId = URLEncoder.encode(networkMessage.header.getFrom(), "utf-8");
-
-                    String subject = "New WiFON " + what + " from " + name;
-                    String body = "Dear WiFON author,\n"
-                            + "\n"
-                            + name + " has written to our authors Croco ID. Please add him as a friend via"
-                            + " http://wifon.sk/profiles/profile?name=" + encodedName + "&croco_id=" + encodedCrocoId
-                            + " and reply to this email if/when you reply " + name + " in WiFON.\n"
-                            + "\n"
-                            + "New " + what + ":\n"
-                            + "\n"
-                            + content;
-                    // send the email notification
-                    sendFromGMail(CptServer.GMAIL_USERNAME, CptServer.GMAIL_PASSWORD,
-                            new String[] { "mikro@wifon.sk", "xi@wifon.sk", "spili@wifon.sk" },
-                            subject, body);
-
-                    // make ACK
-                    if (networkMessage.isExpectingAck()) {
-                        mySqlAccess.updateMessageToAck(networkMessage.header.getIdentifier(), new Date(), networkMessage.getHops());
-                        notify(networkMessage.header.getFrom(), false);
-                        includeMyself = true;
-                    }
-                } catch (IOException e) {
-                    log(e);
-                } catch (ClassNotFoundException e) {
-                    log(e);
                 }
             }
         }

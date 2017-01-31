@@ -54,9 +54,9 @@ public class UploadTokenThread extends CptSyncThread {
             ArrayList<NetworkAttachmentPreview> networkAttachmentPreviews = new ArrayList<>();
 
             Message textMessage = new Message(
-                    "Hi, WiFON authors here.\n"
+                    "Hi, Miro here.\n"
                     + "\n"
-                    + "We have created WiFON, just to see whether it's really possible.\n"
+                    + "Me and my friends have created WiFON, just to see whether it's really possible.\n"
                     + "\n"
                     + "What you ask? Sending messages to each other without Internet connectivity! :-O\n"
                     + "\n"
