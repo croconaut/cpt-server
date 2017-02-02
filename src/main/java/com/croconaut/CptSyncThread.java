@@ -320,7 +320,7 @@ public abstract class CptSyncThread extends LoggableThread {
                     if (canNotify(from, to)) {
                         for (String communityCrocoId : mySqlAccess.getCommunity(from)) {    // TODO: cache
                             if (canNotify(communityCrocoId, from) && canNotify(communityCrocoId, to)) {
-                                notify(communityCrocoId, false);   // ACK => low priority
+                                notify(communityCrocoId, true/*false*/);   // ACK => low priority
                             }
                         }
                     }
@@ -357,7 +357,7 @@ public abstract class CptSyncThread extends LoggableThread {
                             for (String communityCrocoId : acquaintanceCommunity) {
                                 // don't offer the courtesy of delivering broadcast if either 'from' or 'acquaintance' are blocked by 'communityCrocoId'
                                 if (canNotify(communityCrocoId, from) && canNotify(communityCrocoId, acquaintance)) {
-                                    notify(communityCrocoId, false); // BROADCAST for an acquaintance => low priority
+                                    notify(communityCrocoId, true/*false*/); // BROADCAST for an acquaintance => low priority
                                 }
                             }
                         }
