@@ -305,7 +305,7 @@ public abstract class CptSyncThread extends LoggableThread {
                     if (canNotify(to, from)) {
                         for (String communityCrocoId : mySqlAccess.getCommunity(to)) {  // TODO: cache
                             if (canNotify(communityCrocoId, from) && canNotify(communityCrocoId, to)) { // incl. 'to'
-                                notify(communityCrocoId, communityCrocoId.equals(crocoId));   // NORMAL => high priority if for us
+                                notify(communityCrocoId, communityCrocoId.equals(to));   // NORMAL => high priority if for us
                             }
                         }
                     }
