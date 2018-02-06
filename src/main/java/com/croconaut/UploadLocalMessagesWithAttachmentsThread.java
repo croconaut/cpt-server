@@ -3,22 +3,14 @@ package com.croconaut;
 import com.croconaut.cpt.common.util.FileUtil;
 import com.croconaut.cpt.data.MessageAttachmentIdentifier;
 import com.croconaut.cpt.data.StreamUtil;
-import com.croconaut.cpt.network.NetworkHeader;
-import com.croconaut.cpt.network.NetworkMessage;
-import com.croconaut.cpt.network.NetworkUtil;
-import com.croconaut.cpt.network.UriIdentifier;
-import com.croconaut.cpt.network.UriIdentifierResponse;
+import com.croconaut.cpt.network.*;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.sql.SQLException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 
 public class UploadLocalMessagesWithAttachmentsThread extends CptSyncThread {
     private TreeSet<NetworkHeader> receivedHeaders;
@@ -183,7 +175,7 @@ public class UploadLocalMessagesWithAttachmentsThread extends CptSyncThread {
 
         //noinspection unchecked
         List<NetworkMessage> receivedMessages = (List<NetworkMessage>) StreamUtil.readStreamablesFrom(dis);
-        processMessages(receivedMessages);
+        processMessages(receivedMessages, true);
 
         log("received " + receivedMessages.size() + " local messages");
     }

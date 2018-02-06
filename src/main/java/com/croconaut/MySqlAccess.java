@@ -8,27 +8,11 @@ import com.croconaut.cpt.network.NetworkMessage;
 import com.croconaut.cpt.network.UriIdentifierResponse;
 import com.mysql.jdbc.Connection;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.*;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 
 @SuppressWarnings("StringConcatenationInsideStringBufferAppend")
 public class MySqlAccess {
@@ -65,6 +49,26 @@ public class MySqlAccess {
         }
 
         return token;
+    }
+
+    public String getName(String crocoId) {
+        String name = null;
+
+        StringBuilder statement = new StringBuilder("SELECT ").append(TABLE_TOKENS_COLUMN_NAME)
+                .append(" FROM ").append(TABLE_TOKENS)
+                .append(" WHERE ").append(TABLE_TOKENS_COLUMN_CROCO_ID).append(" = ").append("'" + crocoId + "'")
+                .append(";");
+
+        try {
+            ResultSet rs = mySqlConnection.createStatement().executeQuery(statement.toString());
+            if (rs.next()) {
+                name = rs.getString(TABLE_TOKENS_COLUMN_NAME);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return name;
     }
 
     public void setName(String crocoId, String name) {
@@ -638,9 +642,9 @@ public class MySqlAccess {
                     .append(", ").append(valueColumnName)
                 .append(") VALUES (")
                     .append("'" + key + "'")
-                    .append(", ").append("'" + value + "'")
+                    .append(", ").append(value != null ? "'" + value + "'" : "NULL")
                 .append(") ON DUPLICATE KEY UPDATE ")
-                    .append(valueColumnName).append(" = ").append("'" + value + "'")
+                    .append(valueColumnName).append(" = ").append(value != null ? "'" + value + "'" : "NULL")
             .append(";");
 
         try {
@@ -658,7 +662,7 @@ public class MySqlAccess {
                     .append(", ").append(valueColumnName)
                 .append(") VALUES (")
                     .append("'" + key + "'")
-                    .append(", ").append("'" + value + "'")
+                    .append(", ").append(value != null ? "'" + value + "'" : "NULL")
                 .append(")")
             .append(";");
 

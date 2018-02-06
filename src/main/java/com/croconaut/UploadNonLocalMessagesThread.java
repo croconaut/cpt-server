@@ -74,7 +74,7 @@ public class UploadNonLocalMessagesThread extends CptSyncThread {
 
         //noinspection unchecked
         List<NetworkMessage> missingMessages = (List<NetworkMessage>) StreamUtil.readStreamablesFrom(dis);
-        processMessages(missingMessages);
+        processMessages(missingMessages, true);
 
         log("received " + missingMessages.size() + " messages");
     }

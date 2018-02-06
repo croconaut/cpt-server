@@ -1,32 +1,12 @@
 package com.croconaut;
 
+import com.croconaut.cpt.data.MessageIdentifier;
+import com.croconaut.cpt.network.NetworkAttachmentPreview;
 import com.croconaut.cpt.network.NetworkHeader;
 import com.croconaut.cpt.network.NetworkHop;
 import com.croconaut.cpt.network.NetworkMessage;
 import com.google.android.gcm.server.Result;
 import com.google.android.gcm.server.Sender;
-
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.StreamCorruptedException;
-import java.net.Socket;
-import java.net.URLEncoder;
-import java.sql.SQLException;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.mail.Message;
 import javax.mail.MessagingException;
@@ -35,6 +15,13 @@ import javax.mail.Transport;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
+import java.io.*;
+import java.net.Socket;
+import java.net.URLEncoder;
+import java.sql.SQLException;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public abstract class CptSyncThread extends LoggableThread {
     public static final String BROADCAST_ID = "ff:ff:ff:ff:ff:ff";
@@ -44,6 +31,7 @@ public abstract class CptSyncThread extends LoggableThread {
     protected final MySqlAccess mySqlAccess;
     // croco id, high priority
     protected final HashMap<String, Boolean> clientsToNotify = new HashMap<>();
+    protected final HashSet<String> clientsNotRegistered = new HashSet<>();
 
     protected DataOutputStream dos;
     protected DataInputStream  dis;
@@ -168,8 +156,10 @@ public abstract class CptSyncThread extends LoggableThread {
                     log("sender.send() result: " + result.toString());
 
                     if (result.getMessageId() == null) {
-                        // TODO: reschedule
-                        log("send.send() error: " + result.getErrorCodeName());
+                        if (result.getErrorCodeName().equals("NotRegistered")) {
+                            mySqlAccess.setToken(clientCrocoId, null);
+                            clientsNotRegistered.add(clientCrocoId);
+                        } // else TODO: reschedule
                     }
 
                     if (result.getCanonicalRegistrationId() != null) {
@@ -188,7 +178,7 @@ public abstract class CptSyncThread extends LoggableThread {
         mySqlAccess.cleanMessages();
     }
 
-    protected void processMessages(List<NetworkMessage> messages) {
+    protected void processMessages(List<NetworkMessage> messages, boolean alertNotRegistered) {
         log("processMessages");
 
         final Date now = Calendar.getInstance().getTime();
@@ -223,9 +213,7 @@ public abstract class CptSyncThread extends LoggableThread {
                     includeMyself |= updatedCommunitiesEntry.getKey().contains(crocoId);
                     // notify all its members
                     for (String communityCrocoId : updatedCommunitiesEntry.getKey()) {
-                        if (!clientsToNotify.containsKey(communityCrocoId)) {
-                            clientsToNotify.put(communityCrocoId, false);   // low priority, if there's a message for 'crocoId', we'll find out later
-                        }
+                        notify(communityCrocoId, false);    // low priority, if there's a message for 'crocoId', we'll find out later
                     }
                 }
 
@@ -387,19 +375,85 @@ public abstract class CptSyncThread extends LoggableThread {
         }
 
         notifyClients();
+
+        if (alertNotRegistered) {
+            clientsToNotify.clear();
+            ArrayList<NetworkMessage> networkMessagesNotRegistered = new ArrayList<>();
+
+            try {
+                for (NetworkMessage networkMessage : messages) {
+                    final String from = networkMessage.header.getFrom();
+                    final String to = networkMessage.header.getTo();
+
+                    if (!to.equals(BROADCAST_ID) && clientsNotRegistered.contains(to)
+                            && networkMessage.header.getType() == NetworkHeader.Type.NORMAL) {
+                        String name = mySqlAccess.getName(to);
+                        networkMessagesNotRegistered.add(createNetworkMessage(to, from, name,
+                                "It seems that user '" + name + "' has uninstalled WiFON. :-("
+                        ));
+                    }
+                }
+            } catch (IOException e) {
+                log(e);
+            }
+
+            processMessages(networkMessagesNotRegistered, false);
+        }
     }
 
-    private boolean canNotify(String whom, String by) {
+    protected boolean canNotify(String whom, String by) {
         if (!blockedCrocoIds.containsKey(whom)) {
             blockedCrocoIds.put(whom, mySqlAccess.getBlockedCrocoIds(whom));
         }
         return !blockedCrocoIds.get(whom).contains(by);
     }
 
-    private void notify(String who, boolean highPriority) {
+    protected void notify(String who, boolean highPriority) {
         if (!clientsToNotify.containsKey(who) || highPriority) {
             clientsToNotify.put(who, highPriority);
         }
+    }
+
+    protected NetworkMessage createNetworkMessage(String from, String to, String name, String text) throws IOException {
+        ArrayList<NetworkAttachmentPreview> networkAttachmentPreviews = new ArrayList<>();
+
+        com.croconaut.ratemebuddy.data.pojo.Message textMessage = new com.croconaut.ratemebuddy.data.pojo.Message(
+                text, null, name).encoded();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(textMessage);
+        oos.close();
+        byte[] appPayload = baos.toByteArray();
+
+        NetworkHeader networkHeader = new NetworkHeader(
+                -1,
+                new MessageIdentifier(
+                        "com.croconaut.ratemebuddy",
+                        from,
+                        to,
+                        System.currentTimeMillis()
+                ),
+                NetworkHeader.Type.NORMAL,
+                -1
+        );
+        NetworkMessage networkMessage = new NetworkMessage(
+                networkHeader,
+                604800000,
+                appPayload,
+                new ArrayList<NetworkHop>(),  // server's hop will be added in processMessages()
+                false, false, false, false, true,
+                false   // is local
+        );
+        networkMessage.setAttachments(networkAttachmentPreviews);
+
+        // just to be sure we have different creation time next time we call this function
+        try {
+            Thread.sleep(1);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        return networkMessage;
     }
 
     private void sendFromGMail(String from, String pass, String[] to, String subject, String body) {

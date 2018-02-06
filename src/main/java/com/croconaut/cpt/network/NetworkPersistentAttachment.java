@@ -2,14 +2,7 @@ package com.croconaut.cpt.network;
 
 import com.croconaut.CptSyncThread;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.Serializable;
+import java.io.*;
 import java.util.Date;
 
 // This is not a 1:1 copy of CPT's class, only the fields and name is the same.

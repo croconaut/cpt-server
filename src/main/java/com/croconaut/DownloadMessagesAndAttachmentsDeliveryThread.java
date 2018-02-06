@@ -77,7 +77,7 @@ public class DownloadMessagesAndAttachmentsDeliveryThread extends CptSyncThread 
 
         //noinspection unchecked
         List<NetworkMessage> ackMessages = (List<NetworkMessage>) StreamUtil.readStreamablesFrom(dis);
-        processMessages(ackMessages);
+        processMessages(ackMessages, false);
 
         log("received " + ackMessages.size() + " ACK messages");
     }
