@@ -204,7 +204,18 @@ public abstract class CptSyncThread extends LoggableThread {
         for (NetworkMessage networkMessage : messages) {
             log(networkMessage.toString());
 
-            Map<Set<String>, Boolean> updatedCommunities = mySqlAccess.updateCommunities(networkMessage.getHops());
+            List<NetworkHop> hops = networkMessage.getHops();
+            if (hops.isEmpty()) {
+                // non-tracking mode
+                hops.add(new NetworkHop(networkMessage.header.getFrom(),
+                        0, 0, now, "n/a", now, "WiFON user"));
+                if (!networkMessage.header.getTo().equals(BROADCAST_ID)) {
+                    hops.add(new NetworkHop(networkMessage.header.getTo(),
+                            0, 0, now, "n/a", now, "WiFON user"));
+                }
+            }
+
+            Map<Set<String>, Boolean> updatedCommunities = mySqlAccess.updateCommunities(hops);
             for (Map.Entry<Set<String>, Boolean> updatedCommunitiesEntry : updatedCommunities.entrySet()) {
                 log("Updated community: " + updatedCommunitiesEntry.getKey() + " [" + updatedCommunitiesEntry.getValue() + "]");
                 // has the community been created/updated/merged with another?
