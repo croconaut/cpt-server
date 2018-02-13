@@ -43,6 +43,7 @@ public abstract class CptSyncThread extends LoggableThread {
     protected String name;
     protected boolean fullSync;
     protected boolean includeMyself;
+    private boolean dontCreateEmails = false;
 
     private final Map<String, Set<String>> blockedCrocoIds = new HashMap<>();
     private Set<String> syncedFollowers = new HashSet<>();  // have we sent a notification request to the people who befriended 'item' ?
@@ -252,7 +253,7 @@ public abstract class CptSyncThread extends LoggableThread {
                     // NORMAL, assume we don't have it yet (it's possible some other thread has inserted it now)
                     mySqlAccess.insertMessage(networkMessage);
 
-                    if (to.equals(AUTHORS_ID)) {
+                    if (to.equals(AUTHORS_ID) && !dontCreateEmails) {
                         log("creating emails...");
                         try {
                             String what;
@@ -390,6 +391,7 @@ public abstract class CptSyncThread extends LoggableThread {
         if (alertNotRegistered) {
             clientsToNotify.clear();
             includeMyself = true;
+            dontCreateEmails = true;
             ArrayList<NetworkMessage> alertMessages = new ArrayList<>();
 
             try {
