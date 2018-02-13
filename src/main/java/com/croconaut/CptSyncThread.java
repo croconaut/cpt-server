@@ -43,7 +43,7 @@ public abstract class CptSyncThread extends LoggableThread {
     protected String name;
     protected boolean fullSync;
     protected boolean includeMyself;
-    private boolean dontCreateEmails = false;
+    private boolean directMessage = false;
 
     private final Map<String, Set<String>> blockedCrocoIds = new HashMap<>();
     private Set<String> syncedFollowers = new HashSet<>();  // have we sent a notification request to the people who befriended 'item' ?
@@ -190,9 +190,11 @@ public abstract class CptSyncThread extends LoggableThread {
                 null, 51.507222, -0.1275, now, "Debian 5.0 64bit", now, "WiFON server"
         );
 
-        // TODO: remove, only for debug purposes...
-        Set<String> crocoIdCommunity = mySqlAccess.getCommunity(crocoId);
-        log("Community before processing messages: " + crocoIdCommunity.toString());
+        if (!directMessage) {
+            // TODO: remove, only for debug purposes...
+            Set<String> crocoIdCommunity = mySqlAccess.getCommunity(crocoId);
+            log("Community before processing messages: " + crocoIdCommunity.toString());
+        }
 
         // first parse all the hops to create the final community and acquaintances set
         for (NetworkMessage networkMessage : messages) {
@@ -202,45 +204,50 @@ public abstract class CptSyncThread extends LoggableThread {
             if (hops.isEmpty()) {
                 // non-tracking mode
                 // server time - 1s
-                now.setTime(now.getTime() - 1000);
+                Date nowMinus1s = new Date(now.getTime() - 1000);
                 // NORMAL's 1st hop is the sender; ACK has the whole path (sender+server+recipient)
                 hops.add(new NetworkHop(networkMessage.header.getFrom(),
-                        0, 0, now, "n/a", now, "WiFON sender"));
+                        0, 0, nowMinus1s, "n/a", now, "WiFON sender"));
 
                 if (!networkMessage.header.getTo().equals(BROADCAST_ID)
                         && networkMessage.header.getType() == NetworkHeader.Type.ACK) {
                     hops.add(serverNetworkHop);
                     // server time + 1s
-                    now.setTime(now.getTime() + 2000);
+                    Date nowPlus1s = new Date(now.getTime() + 1000);
                     hops.add(new NetworkHop(networkMessage.header.getTo(),
-                            0, 0, now, "n/a", now, "WiFON recipient"));
+                            0, 0, now, "n/a", nowPlus1s, "WiFON recipient"));
                 }
             }
 
-            Map<Set<String>, Boolean> updatedCommunities = mySqlAccess.updateCommunities(hops);
-            for (Map.Entry<Set<String>, Boolean> updatedCommunitiesEntry : updatedCommunities.entrySet()) {
-                log("Updated community: " + updatedCommunitiesEntry.getKey() + " [" + updatedCommunitiesEntry.getValue() + "]");
-                // has the community been created/updated/merged with another?
-                if (updatedCommunitiesEntry.getValue()) {
-                    includeMyself |= updatedCommunitiesEntry.getKey().contains(crocoId);
-                    // notify all its members
-                    for (String communityCrocoId : updatedCommunitiesEntry.getKey()) {
-                        notify(communityCrocoId, false);    // low priority, if there's a message for 'crocoId', we'll find out later
+            if (!directMessage) {
+                Map<Set<String>, Boolean> updatedCommunities = mySqlAccess.updateCommunities(hops);
+                for (Map.Entry<Set<String>, Boolean> updatedCommunitiesEntry : updatedCommunities.entrySet()) {
+                    log("Updated community: " + updatedCommunitiesEntry.getKey() + " [" + updatedCommunitiesEntry.getValue() + "]");
+                    // has the community been created/updated/merged with another?
+                    if (updatedCommunitiesEntry.getValue()) {
+                        includeMyself |= updatedCommunitiesEntry.getKey().contains(crocoId);
+                        // notify all its members
+                        for (String communityCrocoId : updatedCommunitiesEntry.getKey()) {
+                            notify(communityCrocoId, false);    // low priority, if there's a message for 'crocoId', we'll find out later
+                        }
                     }
-                }
 
-                if (!networkMessage.header.getTo().equals(BROADCAST_ID)
-                        && networkMessage.header.getType() == NetworkHeader.Type.NORMAL) {
-                    // if one device writes to another, let's make them buddies ;-) (until one or another is blocked)
-                    mySqlAccess.addAcquaintance(networkMessage.header.getFrom(), networkMessage.header.getTo());
-                    mySqlAccess.addAcquaintance(networkMessage.header.getTo(), networkMessage.header.getFrom());
+                    if (!networkMessage.header.getTo().equals(BROADCAST_ID)
+                            && networkMessage.header.getType() == NetworkHeader.Type.NORMAL) {
+                        // if one device writes to another, let's make them buddies ;-) (until one or another is blocked)
+                        mySqlAccess.addAcquaintance(networkMessage.header.getFrom(), networkMessage.header.getTo());
+                        mySqlAccess.addAcquaintance(networkMessage.header.getTo(), networkMessage.header.getFrom());
+                    }
                 }
             }
         }
 
-        // do it now, after all the hops have been processed
-        crocoIdCommunity = mySqlAccess.getCommunity(crocoId);
-        log("Community after processing messages: " + crocoIdCommunity.toString());
+        if (!directMessage) {
+            // do it now, after all the hops have been processed
+            // TODO: remove, only for debug purposes...
+            Set<String> crocoIdCommunity = mySqlAccess.getCommunity(crocoId);
+            log("Community after processing messages: " + crocoIdCommunity.toString());
+        }
 
         for (NetworkMessage networkMessage : messages) {
             final String from = networkMessage.header.getFrom();
@@ -253,7 +260,7 @@ public abstract class CptSyncThread extends LoggableThread {
                     // NORMAL, assume we don't have it yet (it's possible some other thread has inserted it now)
                     mySqlAccess.insertMessage(networkMessage);
 
-                    if (to.equals(AUTHORS_ID) && !dontCreateEmails) {
+                    if (to.equals(AUTHORS_ID) && !directMessage) {
                         log("creating emails...");
                         try {
                             String what;
@@ -393,7 +400,7 @@ public abstract class CptSyncThread extends LoggableThread {
         if (alertNotRegistered) {
             clientsToNotify.clear();
             includeMyself = true;
-            dontCreateEmails = true;
+            directMessage = true;
             ArrayList<NetworkMessage> alertMessages = new ArrayList<>();
 
             try {
