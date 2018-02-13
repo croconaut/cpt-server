@@ -138,6 +138,7 @@ public abstract class CptSyncThread extends LoggableThread {
             }
 
             String token = mySqlAccess.getToken(clientCrocoId);
+            String name = mySqlAccess.getName(clientCrocoId);
             if (token != null) {
                 boolean isHighPriority = clientsToNotify.get(clientCrocoId);
 
@@ -154,7 +155,7 @@ public abstract class CptSyncThread extends LoggableThread {
                 try {
                     Sender sender = new Sender(CptServer.SERVER_API_KEY);
                     Result result = sender.send(message, token, 5);
-                    log("sender.send(" + clientCrocoId + ") result: " + result.toString());
+                    log("sender.send(" + clientCrocoId + "/" + name +") result: " + result.toString());
 
                     if (result.getMessageId() == null) {
                         if (result.getErrorCodeName().equals("NotRegistered")) {
@@ -172,7 +173,7 @@ public abstract class CptSyncThread extends LoggableThread {
                     log(e);
                 }
             } else {
-                log("Croco ID " + clientCrocoId + " hasn't got a token");
+                log(clientCrocoId + "/" + name +" hasn't got a token");
                 clientsUnknown.add(clientCrocoId);
             }
         }
@@ -184,7 +185,7 @@ public abstract class CptSyncThread extends LoggableThread {
         log("processMessages");
 
         final Date now = Calendar.getInstance().getTime();
-        final NetworkHop networkHop = new NetworkHop(
+        final NetworkHop serverNetworkHop = new NetworkHop(
                 null, 51.507222, -0.1275, now, "Debian 5.0 64bit", now, "WiFON server"
         );
 
@@ -199,11 +200,19 @@ public abstract class CptSyncThread extends LoggableThread {
             List<NetworkHop> hops = networkMessage.getHops();
             if (hops.isEmpty()) {
                 // non-tracking mode
+                // server time - 1s
+                now.setTime(now.getTime() - 1000);
+                // NORMAL's 1st hop is the sender; ACK has the whole path (sender+server+recipient)
                 hops.add(new NetworkHop(networkMessage.header.getFrom(),
-                        0, 0, now, "n/a", now, "WiFON user"));
-                if (!networkMessage.header.getTo().equals(BROADCAST_ID)) {
+                        0, 0, now, "n/a", now, "WiFON sender"));
+
+                if (!networkMessage.header.getTo().equals(BROADCAST_ID)
+                        && networkMessage.header.getType() == NetworkHeader.Type.ACK) {
+                    hops.add(serverNetworkHop);
+                    // server time + 1s
+                    now.setTime(now.getTime() + 2000);
                     hops.add(new NetworkHop(networkMessage.header.getTo(),
-                            0, 0, now, "n/a", now, "WiFON user"));
+                            0, 0, now, "n/a", now, "WiFON recipient"));
                 }
             }
 
@@ -238,7 +247,7 @@ public abstract class CptSyncThread extends LoggableThread {
 
             if (!to.equals(BROADCAST_ID)) {
                 if (networkMessage.header.getType() == NetworkHeader.Type.NORMAL) {
-                    networkMessage.addHop(networkHop);
+                    networkMessage.addHop(serverNetworkHop);
 
                     // NORMAL, assume we don't have it yet (it's possible some other thread has inserted it now)
                     mySqlAccess.insertMessage(networkMessage);
@@ -327,7 +336,7 @@ public abstract class CptSyncThread extends LoggableThread {
                     }
                 }
             } else {
-                networkMessage.addHop(networkHop);
+                networkMessage.addHop(serverNetworkHop);
 
                 // NORMAL, assume we don't have it yet (it's possible some other thread has inserted it now)
                 mySqlAccess.insertMessage(networkMessage);
@@ -380,6 +389,7 @@ public abstract class CptSyncThread extends LoggableThread {
 
         if (alertNotRegistered) {
             clientsToNotify.clear();
+            includeMyself = true;
             ArrayList<NetworkMessage> alertMessages = new ArrayList<>();
 
             try {
@@ -450,7 +460,7 @@ public abstract class CptSyncThread extends LoggableThread {
                 604800000,
                 appPayload,
                 new ArrayList<NetworkHop>(),  // server's hop will be added in processMessages()
-                false, false, false, false, true,
+                false, false, false, false, false,
                 false   // is local
         );
         networkMessage.setAttachments(networkAttachmentPreviews);
