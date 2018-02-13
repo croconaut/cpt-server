@@ -32,6 +32,7 @@ public abstract class CptSyncThread extends LoggableThread {
     // croco id, high priority
     protected final HashMap<String, Boolean> clientsToNotify = new HashMap<>();
     protected final HashSet<String> clientsNotRegistered = new HashSet<>();
+    protected final HashSet<String> clientsUnknown = new HashSet<>();
 
     protected DataOutputStream dos;
     protected DataInputStream  dis;
@@ -153,7 +154,7 @@ public abstract class CptSyncThread extends LoggableThread {
                 try {
                     Sender sender = new Sender(CptServer.SERVER_API_KEY);
                     Result result = sender.send(message, token, 5);
-                    log("sender.send() result: " + result.toString());
+                    log("sender.send(" + clientCrocoId + ") result: " + result.toString());
 
                     if (result.getMessageId() == null) {
                         if (result.getErrorCodeName().equals("NotRegistered")) {
@@ -172,6 +173,7 @@ public abstract class CptSyncThread extends LoggableThread {
                 }
             } else {
                 log("Croco ID " + clientCrocoId + " hasn't got a token");
+                clientsUnknown.add(clientCrocoId);
             }
         }
 
@@ -378,26 +380,33 @@ public abstract class CptSyncThread extends LoggableThread {
 
         if (alertNotRegistered) {
             clientsToNotify.clear();
-            ArrayList<NetworkMessage> networkMessagesNotRegistered = new ArrayList<>();
+            ArrayList<NetworkMessage> alertMessages = new ArrayList<>();
 
             try {
                 for (NetworkMessage networkMessage : messages) {
                     final String from = networkMessage.header.getFrom();
                     final String to = networkMessage.header.getTo();
 
-                    if (!to.equals(BROADCAST_ID) && clientsNotRegistered.contains(to)
-                            && networkMessage.header.getType() == NetworkHeader.Type.NORMAL) {
+                    if (!to.equals(BROADCAST_ID) && networkMessage.header.getType() == NetworkHeader.Type.NORMAL) {
                         String name = mySqlAccess.getName(to);
-                        networkMessagesNotRegistered.add(createNetworkMessage(to, from, name,
-                                "It seems that user '" + name + "' has uninstalled WiFON. :-("
-                        ));
+                        if (clientsNotRegistered.contains(to)) {
+                            alertMessages.add(createNetworkMessage(to, from, name,
+                                    "It seems that user '" + name + "' has uninstalled WiFON. :-("
+                            ));
+                        } else if (clientsUnknown.contains(to)) {
+                            alertMessages.add(createNetworkMessage(to, from, name,
+                                    "The WiFON server hasn't recognised user '" + name + "'. This may be " +
+                                            "either because the WiFON app hasn't connected to the server yet " +
+                                            "or because the user has WiFON no longer installed."
+                            ));
+                        }
                     }
                 }
             } catch (IOException e) {
                 log(e);
             }
 
-            processMessages(networkMessagesNotRegistered, false);
+            processMessages(alertMessages, false);
         }
     }
 

@@ -6,6 +6,7 @@
 local.properties
 .DS_Store
 Thumbs.db
+/out
 
 # never ever put these in the repository
 api_key.txt
@@ -17,3 +18,4 @@ gmail.txt
 exit_port.txt
 ??:??:??:??:??:??
 *.log
+*~
