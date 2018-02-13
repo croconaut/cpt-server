@@ -314,6 +314,7 @@ public abstract class CptSyncThread extends LoggableThread {
 
                     // we need to do this global check because we don't want to notify to's community if 'to' himself blocks 'from'
                     if (canNotify(to, from)) {
+                        notify(to, true);
                         for (String communityCrocoId : mySqlAccess.getCommunity(to)) {  // TODO: cache
                             if (canNotify(communityCrocoId, from) && canNotify(communityCrocoId, to)) { // incl. 'to'
                                 notify(communityCrocoId, communityCrocoId.equals(to));   // NORMAL => high priority if for us
@@ -329,9 +330,10 @@ public abstract class CptSyncThread extends LoggableThread {
                     // we don't have to check isExpectingAck -- such messages shouldn't arrive at all!
 
                     if (canNotify(from, to)) {
+                        notify(from, true);   // ACK => high priority (for the sender at least)
                         for (String communityCrocoId : mySqlAccess.getCommunity(from)) {    // TODO: cache
                             if (canNotify(communityCrocoId, from) && canNotify(communityCrocoId, to)) {
-                                notify(communityCrocoId, true/*false*/);   // ACK => low priority
+                                notify(communityCrocoId, false);   // ACK => low priority (if delivered trough the community)
                             }
                         }
                     }
