@@ -200,7 +200,8 @@ public abstract class CptSyncThread extends LoggableThread {
         for (NetworkMessage networkMessage : messages) {
             log(networkMessage.toString());
 
-            List<NetworkHop> hops = networkMessage.getHops();
+            // we don't mind that the copy is shallow
+            List<NetworkHop> hops = new ArrayList<>(networkMessage.getHops());
             if (hops.isEmpty()) {
                 // non-tracking mode
                 // server time - 1s
