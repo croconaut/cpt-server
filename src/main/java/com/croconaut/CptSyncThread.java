@@ -106,6 +106,11 @@ public abstract class CptSyncThread extends LoggableThread {
         log("receiveCrocoIdAndUsername: " + crocoId + " (" + name + ")");
     }
 
+    protected void receiveDeviceInfo() throws IOException {
+        String deviceInfo = dis.readUTF();
+        log(deviceInfo);
+    }
+
     protected void receiveSyncPreference() throws IOException {
         fullSync = dis.readBoolean();
     }
